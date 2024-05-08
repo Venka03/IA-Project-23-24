@@ -13,13 +13,10 @@ def fuzzyValue(val: int, fuzzyset: FuzzySet) -> int:
     return fuzzyset.y[index[0][0]]
 
 
-
 def main():
     fuzzySetsDict = readFuzzySetsFile("InputVarSets.txt")
     rules = readRulesFile()
     applicationList = readApplicationsFile()  # store for each member it's value and compute their risk
-    print(len(applicationList))
-    print(len(rules))
     i = 0
     for applicant in applicationList:  # take every application
         variables = []
@@ -28,25 +25,33 @@ def main():
                 if data[0] == fuzzySetsDict[key].var:
                     fuzzySetsDict[key].memDegree = fuzzyValue(int(data[1]), fuzzySetsDict[key])
                     if fuzzySetsDict[key].memDegree:  # not zero
-                        variables.append((fuzzySetsDict[key].var+"="+fuzzySetsDict[key].label))
+                        variables.append([fuzzySetsDict[key].var + "=" + fuzzySetsDict[key].label,
+                                          fuzzySetsDict[key].memDegree])     # not zero]
         userRules = []
-        if i == 0:
-            fuzzySetsDict.printFuzzySetsDict()
-            print(variables)
+        if i == 1:
+            # fuzzySetsDict.printFuzzySetsDict()
             for rule in rules:
-                if all(elem in variables for elem in rule.antecedent):  # check which rules are satisfied
-                    # rule.strength = min(applicable variables)
+                strength = 1
+                validRule = 1
+                for elem in rule.antecedent:    # check which rules are satisfied
+                    found = 0
+                    for var in variables:
+                        if elem == var[0]:      # decrease the strength of the rule if necessary
+                            found = 1
+                            strength = min(strength, var[1])
+                            break
+                    if found == 0:
+                        validRule = 0
+                        break
+                if validRule == 1:
+                    rule.strength = strength
                     userRules.append(rule)
                     rule.printRule()
         i += 1
 
-
-
-
-            #  print(data[0], data[1])
+        #  print(data[0], data[1])
     print("\n-----------------------")
     #  fuzzySetsDict.printFuzzySetsDict()
-
 
 
 if __name__ == "__main__":
