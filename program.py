@@ -18,6 +18,8 @@ def main():
     fuzzySetsDict = readFuzzySetsFile("InputVarSets.txt")
     rules = readRulesFile()
     applicationList = readApplicationsFile()  # store for each member it's value and compute their risk
+    print(len(applicationList))
+    print(len(rules))
     i = 0
     for applicant in applicationList:  # take every application
         variables = []
@@ -33,6 +35,7 @@ def main():
             print(variables)
             for rule in rules:
                 if all(elem in variables for elem in rule.antecedent):  # check which rules are satisfied
+                    # rule.strength = min(applicable variables)
                     userRules.append(rule)
                     rule.printRule()
         i += 1
