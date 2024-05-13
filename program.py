@@ -23,18 +23,46 @@ def main():
     rules = readRulesFile()
     applicationList = readApplicationsFile()  # store for each member it's value and compute their risk
     i = 0
+
+    file = open("Results.txt", "w")
+
     for applicant in applicationList:  # take every application
-        variables = []
-        for data in applicant.data:  # go through their data to calculate risk
-            for key in fuzzySetsDict.keys():
-                if data[0] == fuzzySetsDict[key].var:
-                    fuzzySetsDict[key].memDegree = fuzzyValue(int(data[1]), fuzzySetsDict[key])
-                    if fuzzySetsDict[key].memDegree:  # not zero
-                        variables.append([fuzzySetsDict[key].var + "=" + fuzzySetsDict[key].label,
-                                          fuzzySetsDict[key].memDegree])  # not zero]
-        userRules = []
-        if i == 4:
-            # fuzzySetsDict.printFuzzySetsDict()
+            variables = []
+            for data in applicant.data:  # go through their data to calculate risk
+                for key in fuzzySetsDict.keys():
+                    if data[0] == fuzzySetsDict[key].var:
+                        fuzzySetsDict[key].memDegree = fuzzyValue(int(data[1]), fuzzySetsDict[key])
+                        if fuzzySetsDict[key].memDegree:  # not zero
+                            variables.append([fuzzySetsDict[key].var + "=" + fuzzySetsDict[key].label,
+                                              fuzzySetsDict[key].memDegree])  # not zero]
+            """
+            # prints same for every user. check why
+            low = medium = high = 0
+            for rule in rules:
+    
+                strength = 1
+                for elem in rule.antecedent:  # check which rules are satisfied
+                    for var in variables:
+                        if elem == var[0]:  # decrease the strength of the rule if necessary
+                            strength = min(strength, var[1])
+                            break
+                rule.strength = strength
+    
+                if rule.consequent == "Risk=HighR":
+                    high = max(high, rule.strength)
+                if rule.consequent == "Risk=MediumR":
+                    medium = max(medium, rule.strength)
+                if rule.consequent == "Risk=LowR":
+                    low = max(low, rule.strength)
+    
+            aggreg = np.fmax(fuzzySetsRisks["Risk=LowR"].y * low, fuzzySetsRisks["Risk=MediumR"].y * medium)
+            aggreg = np.fmax(fuzzySetsRisks["Risk=HighR"].y * high, aggreg)
+    
+            area = np.trapz(aggreg, x=fuzzySetsRisks["Risk=LowR"].x)
+            centroid_x = np.trapz(fuzzySetsRisks["Risk=LowR"].x * aggreg, x=fuzzySetsRisks["Risk=LowR"].x) / area
+            file.write(f"{applicant.appId}, {centroid_x}\n")
+            """
+
             low = 0
             medium = 0
             high = 0
@@ -54,8 +82,6 @@ def main():
                         break
                 if validRule == 1:
                     rule.strength = strength
-                    userRules.append(rule)
-                    rule.printRule()
                     if rule.consequent == "Risk=HighR":
                         high = max(high, rule.strength)
                     if rule.consequent == "Risk=MediumR":
@@ -63,43 +89,96 @@ def main():
                     if rule.consequent == "Risk=LowR":
                         low = max(low, rule.strength)
 
-            fuzzySetsRisks["Risk=LowR"].y *= low
-            fuzzySetsRisks["Risk=MediumR"].y *= medium
-            fuzzySetsRisks["Risk=HighR"].y *= high
-
-            """
-                    for key in fuzzySetsRisks:
-                        if rule.consequent == fuzzySetsRisks[key].var + "=" + fuzzySetsRisks[key].label:
-                            fuzzySetsRisks[key].memDegree = rule.strength
-                            fuzzySetsRisks[key].y *= fuzzySetsRisks[key].memDegree
-            """
-
-            # aggreg = np.fmax(fuzzySetsRisks.values[0].y, np.fmax(fuzzySetsRisks.values[1].y, fuzzySetsRisks.values[2].y))
-            aggreg = np.fmax(fuzzySetsRisks["Risk=LowR"].y, fuzzySetsRisks["Risk=MediumR"].y)
-            aggreg = np.fmax(fuzzySetsRisks["Risk=HighR"].y, aggreg)
+            aggreg = np.fmax(fuzzySetsRisks["Risk=HighR"].y * high,
+                             np.fmax(fuzzySetsRisks["Risk=LowR"].y * low, fuzzySetsRisks["Risk=MediumR"].y * medium))
 
             area = np.trapz(aggreg, x=fuzzySetsRisks["Risk=LowR"].x)
-            centroid = np.trapz(fuzzySetsRisks["Risk=LowR"].x * aggreg, x=fuzzySetsRisks["Risk=LowR"].x) / area
-            plt.axvline(x=centroid, color='orange', linestyle='--', label='Centroid of area')
+            centroid_x = np.trapz(fuzzySetsRisks["Risk=LowR"].x * aggreg, x=fuzzySetsRisks["Risk=LowR"].x) / area
+            file.write(f"{applicant.appId}, {centroid_x}\n")
+            """
+            if i == 19:
+                # fuzzySetsDict.printFuzzySetsDict()
+                low = 0
+                medium = 0
+                high = 0
+    
+                for rule in rules:
+                    strength = 1
+                    validRule = 1
+                    for elem in rule.antecedent:  # check which rules are satisfied
+                        found = 0
+                        for var in variables:
+                            if elem == var[0]:  # decrease the strength of the rule if necessary
+                                found = 1
+                                strength = min(strength, var[1])
+                                break
+                        if found == 0:
+                            validRule = 0
+                            break
+                    if validRule == 1:
+                        rule.strength = strength
+                        userRules.append(rule)
+                        rule.printRule()
+                        if rule.consequent == "Risk=HighR":
+                            high = max(high, rule.strength)
+                        if rule.consequent == "Risk=MediumR":
+                            medium = max(medium, rule.strength)
+                        if rule.consequent == "Risk=LowR":
+                            low = max(low, rule.strength)
+    
+                fuzzySetsRisks["Risk=LowR"].y *= low
+                fuzzySetsRisks["Risk=MediumR"].y *= medium
+                fuzzySetsRisks["Risk=HighR"].y *= high
+    
+                
+                #        for key in fuzzySetsRisks:
+                #            if rule.consequent == fuzzySetsRisks[key].var + "=" + fuzzySetsRisks[key].label:
+                #                fuzzySetsRisks[key].memDegree = rule.strength
+                #                fuzzySetsRisks[key].y *= fuzzySetsRisks[key].memDegree
+                
+    
+                # aggreg = np.fmax(fuzzySetsRisks.values[0].y, np.fmax(fuzzySetsRisks.values[1].y, fuzzySetsRisks.values[2].y))
+                aggreg = np.fmax(fuzzySetsRisks["Risk=LowR"].y, fuzzySetsRisks["Risk=MediumR"].y)
+                aggreg = np.fmax(fuzzySetsRisks["Risk=HighR"].y, aggreg)
+    
+                area = np.trapz(aggreg, x=fuzzySetsRisks["Risk=LowR"].x)
+                centroid_x = np.trapz(fuzzySetsRisks["Risk=LowR"].x * aggreg, x=fuzzySetsRisks["Risk=LowR"].x) / area
+                
+                
+                #left_x = int(centroid_x)
+                #right_x = left_x + 1
+    
+                #left_y = aggreg[left_x]
+                #right_y = aggreg[right_x]
+    
+                #slope = (right_y - left_y) / (right_x - left_x)
+                #f_centroid = left_y + slope * (centroid_x - left_x)
+                #plt.scatter(centroid_x, f_centroid, color='k', label='Centroid')
+                
+                
+    
+                plt.axvline(x=centroid_x, color='orange', linestyle='--', label='Centroid of area')
+    
+                #  aggreg = skf.maxmin_composition(fuzzySetsRisks.values[0].x, fuzzySetsRisks.values[0].y, fuzzySetsRisks.values[0].x, fuzzySetsRisks.values[1].y)
+                #  aggreg = skf.maxmin_composition(fuzzySetsRisks.values[0].x, aggreg, fuzzySetsRisks.values[0].x,  fuzzySetsRisks.values[2].y)
+    
+                plt.plot(fuzzySetsRisks["Risk=LowR"].x, fuzzySetsRisks["Risk=LowR"].y, label='low risk')
+                plt.plot(fuzzySetsRisks["Risk=MediumR"].x, fuzzySetsRisks["Risk=MediumR"].y, label='medium risk')
+                plt.plot(fuzzySetsRisks["Risk=HighR"].x, fuzzySetsRisks["Risk=HighR"].y, label='high risk')
+                plt.plot(fuzzySetsRisks["Risk=LowR"].x, aggreg, label='Aggregated', linestyle='--')
+                plt.xlabel('x')
+                plt.ylabel('Membership degree')
+                plt.title('Aggregation using max')
+                plt.legend()
+                plt.show()
+                """
 
-            #  aggreg = skf.maxmin_composition(fuzzySetsRisks.values[0].x, fuzzySetsRisks.values[0].y, fuzzySetsRisks.values[0].x, fuzzySetsRisks.values[1].y)
-            #  aggreg = skf.maxmin_composition(fuzzySetsRisks.values[0].x, aggreg, fuzzySetsRisks.values[0].x,  fuzzySetsRisks.values[2].y)
+            i += 1
 
-            plt.plot(fuzzySetsRisks["Risk=LowR"].x, fuzzySetsRisks["Risk=LowR"].y, label='low risk')
-            plt.plot(fuzzySetsRisks["Risk=MediumR"].x, fuzzySetsRisks["Risk=MediumR"].y, label='medium risk')
-            plt.plot(fuzzySetsRisks["Risk=HighR"].x, fuzzySetsRisks["Risk=HighR"].y, label='high risk')
-            plt.plot(fuzzySetsRisks["Risk=LowR"].x, aggreg, label='Aggregated', linestyle='--')
-            plt.xlabel('x')
-            plt.ylabel('Membership degree')
-            plt.title('Aggregation using max')
-            plt.legend()
-            plt.show()
-
-        i += 1
-
-        #  print(data[0], data[1])
+            #  print(data[0], data[1])
     print("\n-----------------------")
     #  fuzzySetsDict.printFuzzySetsDict()
+    file.close()
 
 
 if __name__ == "__main__":
