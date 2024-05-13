@@ -27,7 +27,7 @@ def readFuzzySetsFile(fleName):
         b = int(elementsList[4])
         c = int(elementsList[5])
         d = int(elementsList[6])
-        x = np.arange(xmin, xmax, 1)
+        x = np.arange(xmin, xmax+1, 1)
         y = skf.trapmf(x, [a, b, c, d])
         fuzzySet.x = x
         fuzzySet.y = y
