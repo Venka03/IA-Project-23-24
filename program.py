@@ -1,6 +1,10 @@
 from MFIS_Read_Functions import *
 import skfuzzy as skf
 import copy
+import matplotlib
+import matplotlib.pyplot as plt
+
+matplotlib.use('TkAgg')  # for pycharm on mac
 
 
 def fuzzyValue(val: int, fuzzyset: FuzzySet) -> int:
@@ -27,9 +31,9 @@ def main():
                     fuzzySetsDict[key].memDegree = fuzzyValue(int(data[1]), fuzzySetsDict[key])
                     if fuzzySetsDict[key].memDegree:  # not zero
                         variables.append([fuzzySetsDict[key].var + "=" + fuzzySetsDict[key].label,
-                                          fuzzySetsDict[key].memDegree])     # not zero]
+                                          fuzzySetsDict[key].memDegree])  # not zero]
         userRules = []
-        if i == 1:
+        if i == 4:
             # fuzzySetsDict.printFuzzySetsDict()
             low = 0
             medium = 0
@@ -38,10 +42,10 @@ def main():
             for rule in rules:
                 strength = 1
                 validRule = 1
-                for elem in rule.antecedent:    # check which rules are satisfied
+                for elem in rule.antecedent:  # check which rules are satisfied
                     found = 0
                     for var in variables:
-                        if elem == var[0]:      # decrease the strength of the rule if necessary
+                        if elem == var[0]:  # decrease the strength of the rule if necessary
                             found = 1
                             strength = min(strength, var[1])
                             break
@@ -70,24 +74,26 @@ def main():
                             fuzzySetsRisks[key].y *= fuzzySetsRisks[key].memDegree
             """
 
-            #aggreg = np.fmax(fuzzySetsRisks.values[0].y, np.fmax(fuzzySetsRisks.values[1].y, fuzzySetsRisks.values[2].y))
+            # aggreg = np.fmax(fuzzySetsRisks.values[0].y, np.fmax(fuzzySetsRisks.values[1].y, fuzzySetsRisks.values[2].y))
             aggreg = np.fmax(fuzzySetsRisks["Risk=LowR"].y, fuzzySetsRisks["Risk=MediumR"].y)
             aggreg = np.fmax(fuzzySetsRisks["Risk=HighR"].y, aggreg)
+
+            area = np.trapz(aggreg, x=fuzzySetsRisks["Risk=LowR"].x)
+            centroid = np.trapz(fuzzySetsRisks["Risk=LowR"].x * aggreg, x=fuzzySetsRisks["Risk=LowR"].x) / area
+            plt.axvline(x=centroid, color='orange', linestyle='--', label='Centroid of area')
+
             #  aggreg = skf.maxmin_composition(fuzzySetsRisks.values[0].x, fuzzySetsRisks.values[0].y, fuzzySetsRisks.values[0].x, fuzzySetsRisks.values[1].y)
             #  aggreg = skf.maxmin_composition(fuzzySetsRisks.values[0].x, aggreg, fuzzySetsRisks.values[0].x,  fuzzySetsRisks.values[2].y)
 
-
-            plt.plot(fuzzySetsRisks["Risk=LowR"].x, fuzzySetsRisks["Risk=LowR"].y, label='MF 1')
-            plt.plot(fuzzySetsRisks["Risk=MediumR"].x, fuzzySetsRisks["Risk=MediumR"].y, label='MF 2')
-            plt.plot(fuzzySetsRisks["Risk=HighR"].x, fuzzySetsRisks["Risk=HighR"].y, label='MF 3')
-            plt.plot(fuzzySetsRisks["Risk=LowR"].x, aggreg, label='Aggregated MF', linestyle='--')
+            plt.plot(fuzzySetsRisks["Risk=LowR"].x, fuzzySetsRisks["Risk=LowR"].y, label='low risk')
+            plt.plot(fuzzySetsRisks["Risk=MediumR"].x, fuzzySetsRisks["Risk=MediumR"].y, label='medium risk')
+            plt.plot(fuzzySetsRisks["Risk=HighR"].x, fuzzySetsRisks["Risk=HighR"].y, label='high risk')
+            plt.plot(fuzzySetsRisks["Risk=LowR"].x, aggreg, label='Aggregated', linestyle='--')
             plt.xlabel('x')
             plt.ylabel('Membership degree')
             plt.title('Aggregation using max')
             plt.legend()
             plt.show()
-
-
 
         i += 1
 
