@@ -1,20 +1,54 @@
 from MFIS_Read_Functions import *
 import skfuzzy as skf
 import copy
+'''
 import matplotlib
 import matplotlib.pyplot as plt
 
 matplotlib.use('TkAgg')  # for pycharm on mac
+'''
 
 
-def fuzzyValue(val: int, fuzzyset: FuzzySet) -> int:
-    if val > fuzzyset.x[-1]:
-        return fuzzyset.y[-1]
-    index = np.where(fuzzyset.x == val)
+def fuzzyValue(val: int, fuzzySet: FuzzySet) -> float:
+    """
+    compute membership degree having fuzzy set and input variable
+    """
+    if val > fuzzySet.x[-1]:
+        return fuzzySet.y[-1]
+    index = np.where(fuzzySet.x == val)
     if index[0].size == 0:
-        print(val, fuzzyset.var)
+        print(val, fuzzySet.var)
         raise "ERROR: wrong fuzzy input variable"
-    return fuzzyset.y[index[0][0]]
+    return fuzzySet.y[index[0][0]]
+
+
+def computeScalingCoef(rules: RuleList, fuzzySets: FuzzySet) -> tuple[int, int, int]:
+    low = 0
+    medium = 0
+    high = 0
+    for rule in rules:
+        strength = 1
+        validRule = True
+        for antecedent in rule.antecedent:  # check which rules are satisfied
+            found = 0
+            for set in fuzzySets:
+                print(set)
+                if antecedent == set[0]:  # if fuzzy set is in antecedent
+                    found = 1
+                    strength = min(strength, set[1])  # the strength is the minimum value of antecedent of rule
+                    break
+            if found == 0:  # if none of applicants non zero fuzzy sets are in antecedent, then rule is not applicable
+                validRule = False
+                break
+        if validRule:
+            rule.strength = strength
+            if rule.consequent == "Risk=HighR":
+                high = max(high, rule.strength)  # compute coefficient for scaling rule of hight risk
+            if rule.consequent == "Risk=MediumR":
+                medium = max(medium, rule.strength)  # compute coefficient for scaling rule of medium risk
+            if rule.consequent == "Risk=LowR":
+                low = max(low, rule.strength)  # compute coefficient for scaling rule of low risk
+    
 
 
 def main():
@@ -22,162 +56,59 @@ def main():
     fuzzySetsRisks = readFuzzySetsFile("Risks.txt")
     rules = readRulesFile()
     applicationList = readApplicationsFile()  # store for each member it's value and compute their risk
-    i = 0
-
+    print(len(fuzzySetsRisks))
+    print(fuzzySetsRisks.keys())
     file = open("Results.txt", "w")
 
     for applicant in applicationList:  # take every application
-            variables = []
-            for data in applicant.data:  # go through their data to calculate risk
-                for key in fuzzySetsDict.keys():
-                    if data[0] == fuzzySetsDict[key].var:
-                        fuzzySetsDict[key].memDegree = fuzzyValue(int(data[1]), fuzzySetsDict[key])
-                        if fuzzySetsDict[key].memDegree:  # not zero
-                            variables.append([fuzzySetsDict[key].var + "=" + fuzzySetsDict[key].label,
-                                              fuzzySetsDict[key].memDegree])  # not zero]
-            """
-            # prints same for every user. check why
-            low = medium = high = 0
-            for rule in rules:
-    
-                strength = 1
-                for elem in rule.antecedent:  # check which rules are satisfied
-                    for var in variables:
-                        if elem == var[0]:  # decrease the strength of the rule if necessary
-                            strength = min(strength, var[1])
-                            break
-                rule.strength = strength
-    
-                if rule.consequent == "Risk=HighR":
-                    high = max(high, rule.strength)
-                if rule.consequent == "Risk=MediumR":
-                    medium = max(medium, rule.strength)
-                if rule.consequent == "Risk=LowR":
-                    low = max(low, rule.strength)
-    
-            aggreg = np.fmax(fuzzySetsRisks["Risk=LowR"].y * low, fuzzySetsRisks["Risk=MediumR"].y * medium)
-            aggreg = np.fmax(fuzzySetsRisks["Risk=HighR"].y * high, aggreg)
-    
-            area = np.trapz(aggreg, x=fuzzySetsRisks["Risk=LowR"].x)
-            centroid_x = np.trapz(fuzzySetsRisks["Risk=LowR"].x * aggreg, x=fuzzySetsRisks["Risk=LowR"].x) / area
-            file.write(f"{applicant.appId}, {centroid_x}\n")
-            """
+        nonZeroFuzzySets = []
+        for data in applicant.data:  # go through their data to calculate risk
+            for key in fuzzySetsDict.keys():
+                if data[0] == fuzzySetsDict[key].var:
+                    fuzzySetsDict[key].memDegree = fuzzyValue(int(data[1]), fuzzySetsDict[key])
+                    if fuzzySetsDict[key].memDegree:  # not zero
+                        nonZeroFuzzySets.append([fuzzySetsDict[key].var + "=" + fuzzySetsDict[key].label,
+                                          fuzzySetsDict[key].memDegree])
+        
+        scaling_coefficients = {key: 0 for key in fuzzySetsRisks.keys()}
 
-            low = 0
-            medium = 0
-            high = 0
-
-            for rule in rules:
-                strength = 1
-                validRule = 1
-                for elem in rule.antecedent:  # check which rules are satisfied
-                    found = 0
-                    for var in variables:
-                        if elem == var[0]:  # decrease the strength of the rule if necessary
-                            found = 1
-                            strength = min(strength, var[1])
-                            break
-                    if found == 0:
-                        validRule = 0
+        for rule in rules:
+            strength = 1
+            validRule = True
+            for antecedent in rule.antecedent:  # check which rules are satisfied
+                found = False
+                for set in nonZeroFuzzySets:
+                    if antecedent == set[0]:  # if fuzzy set is in antecedent
+                        found = True
+                        strength = min(strength, set[1])  # the strength is the minimum value of antecedent of rule
                         break
-                if validRule == 1:
-                    rule.strength = strength
-                    if rule.consequent == "Risk=HighR":
-                        high = max(high, rule.strength)
-                    if rule.consequent == "Risk=MediumR":
-                        medium = max(medium, rule.strength)
-                    if rule.consequent == "Risk=LowR":
-                        low = max(low, rule.strength)
+                if not found:  # if none of applicants non zero fuzzy sets are in antecedent, then rule is not applicable
+                    validRule = False
+                    break
+            if validRule:
+                rule.strength = strength
+                # compute coefficient for scaling for each risk
+                scaling_coefficients[rule.consequent] = max(scaling_coefficients[rule.consequent], rule.strength)
 
-            aggreg = np.fmax(fuzzySetsRisks["Risk=HighR"].y * high,
-                             np.fmax(fuzzySetsRisks["Risk=LowR"].y * low, fuzzySetsRisks["Risk=MediumR"].y * medium))
+        # get the aggregation
+        # if only one risk fuzzy set, then aggregation is just this risk scaled
+        # else in is max values of each risk set
+        first = True
+        
+        for key in fuzzySetsRisks.keys():
+            if first:
+                # to have at least one key to use it later for computing centroid, since size of Xs of each risk set is the same
+                k = key
+                aggregation = fuzzySetsRisks[key].y * scaling_coefficients[key]
+                first = False
+            else:
+                aggregation = np.fmax(fuzzySetsRisks[key].y * scaling_coefficients[key], aggregation)
 
-            area = np.trapz(aggreg, x=fuzzySetsRisks["Risk=LowR"].x)
-            centroid_x = np.trapz(fuzzySetsRisks["Risk=LowR"].x * aggreg, x=fuzzySetsRisks["Risk=LowR"].x) / area
-            file.write(f"{applicant.appId}, {centroid_x}\n")
-            """
-            if i == 19:
-                # fuzzySetsDict.printFuzzySetsDict()
-                low = 0
-                medium = 0
-                high = 0
-    
-                for rule in rules:
-                    strength = 1
-                    validRule = 1
-                    for elem in rule.antecedent:  # check which rules are satisfied
-                        found = 0
-                        for var in variables:
-                            if elem == var[0]:  # decrease the strength of the rule if necessary
-                                found = 1
-                                strength = min(strength, var[1])
-                                break
-                        if found == 0:
-                            validRule = 0
-                            break
-                    if validRule == 1:
-                        rule.strength = strength
-                        userRules.append(rule)
-                        rule.printRule()
-                        if rule.consequent == "Risk=HighR":
-                            high = max(high, rule.strength)
-                        if rule.consequent == "Risk=MediumR":
-                            medium = max(medium, rule.strength)
-                        if rule.consequent == "Risk=LowR":
-                            low = max(low, rule.strength)
-    
-                fuzzySetsRisks["Risk=LowR"].y *= low
-                fuzzySetsRisks["Risk=MediumR"].y *= medium
-                fuzzySetsRisks["Risk=HighR"].y *= high
-    
-                
-                #        for key in fuzzySetsRisks:
-                #            if rule.consequent == fuzzySetsRisks[key].var + "=" + fuzzySetsRisks[key].label:
-                #                fuzzySetsRisks[key].memDegree = rule.strength
-                #                fuzzySetsRisks[key].y *= fuzzySetsRisks[key].memDegree
-                
-    
-                # aggreg = np.fmax(fuzzySetsRisks.values[0].y, np.fmax(fuzzySetsRisks.values[1].y, fuzzySetsRisks.values[2].y))
-                aggreg = np.fmax(fuzzySetsRisks["Risk=LowR"].y, fuzzySetsRisks["Risk=MediumR"].y)
-                aggreg = np.fmax(fuzzySetsRisks["Risk=HighR"].y, aggreg)
-    
-                area = np.trapz(aggreg, x=fuzzySetsRisks["Risk=LowR"].x)
-                centroid_x = np.trapz(fuzzySetsRisks["Risk=LowR"].x * aggreg, x=fuzzySetsRisks["Risk=LowR"].x) / area
-                
-                
-                #left_x = int(centroid_x)
-                #right_x = left_x + 1
-    
-                #left_y = aggreg[left_x]
-                #right_y = aggreg[right_x]
-    
-                #slope = (right_y - left_y) / (right_x - left_x)
-                #f_centroid = left_y + slope * (centroid_x - left_x)
-                #plt.scatter(centroid_x, f_centroid, color='k', label='Centroid')
-                
-                
-    
-                plt.axvline(x=centroid_x, color='orange', linestyle='--', label='Centroid of area')
-    
-                #  aggreg = skf.maxmin_composition(fuzzySetsRisks.values[0].x, fuzzySetsRisks.values[0].y, fuzzySetsRisks.values[0].x, fuzzySetsRisks.values[1].y)
-                #  aggreg = skf.maxmin_composition(fuzzySetsRisks.values[0].x, aggreg, fuzzySetsRisks.values[0].x,  fuzzySetsRisks.values[2].y)
-    
-                plt.plot(fuzzySetsRisks["Risk=LowR"].x, fuzzySetsRisks["Risk=LowR"].y, label='low risk')
-                plt.plot(fuzzySetsRisks["Risk=MediumR"].x, fuzzySetsRisks["Risk=MediumR"].y, label='medium risk')
-                plt.plot(fuzzySetsRisks["Risk=HighR"].x, fuzzySetsRisks["Risk=HighR"].y, label='high risk')
-                plt.plot(fuzzySetsRisks["Risk=LowR"].x, aggreg, label='Aggregated', linestyle='--')
-                plt.xlabel('x')
-                plt.ylabel('Membership degree')
-                plt.title('Aggregation using max')
-                plt.legend()
-                plt.show()
-                """
+        area = np.trapz(aggregation, x=fuzzySetsRisks[k].x)
+        centroid_x = np.trapz(fuzzySetsRisks[k].x * aggregation, x=fuzzySetsRisks[k].x) / area
+        file.write(f"{applicant.appId}, {centroid_x}\n")
 
-            i += 1
-
-            #  print(data[0], data[1])
-    print("\n-----------------------")
-    #  fuzzySetsDict.printFuzzySetsDict()
+    print("\nSaved to filed")
     file.close()
 
 
