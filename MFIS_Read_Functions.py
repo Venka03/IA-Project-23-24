@@ -39,6 +39,10 @@ def readFuzzySetsFile(fleName):
 
 
 def readRulesFile():
+    """
+    This function reads a file containing rules to compute risk
+    and returns a list with all of them
+    """
     inputFile = open('Rules.txt', 'r')
     rules = RuleList()
     line = inputFile.readline()
@@ -59,6 +63,10 @@ def readRulesFile():
 
 
 def readApplicationsFile():
+    """
+    This function reads a file containing information about applications of the debts
+    and returns a list with all of them
+    """
     inputFile = open('Applications.txt', 'r')
     applicationList = []
     line = inputFile.readline()
