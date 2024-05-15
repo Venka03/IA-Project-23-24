@@ -32,7 +32,6 @@ def computeScalingCoef(rules: RuleList, fuzzySets: FuzzySet) -> tuple[int, int, 
         for antecedent in rule.antecedent:  # check which rules are satisfied
             found = 0
             for set in fuzzySets:
-                print(set)
                 if antecedent == set[0]:  # if fuzzy set is in antecedent
                     found = 1
                     strength = min(strength, set[1])  # the strength is the minimum value of antecedent of rule
@@ -56,8 +55,6 @@ def main():
     fuzzySetsRisks = readFuzzySetsFile("Risks.txt")
     rules = readRulesFile()
     applicationList = readApplicationsFile()  # store for each member it's value and compute their risk
-    print(len(fuzzySetsRisks))
-    print(fuzzySetsRisks.keys())
     file = open("Results.txt", "w")
 
     for applicant in applicationList:  # take every application
@@ -94,18 +91,17 @@ def main():
         # if only one risk fuzzy set, then aggregation is just this risk scaled
         # else in is max values of each risk set
         first = True
-        
         for key in fuzzySetsRisks.keys():
             if first:
                 # to have at least one key to use it later for computing centroid, since size of Xs of each risk set is the same
-                k = key
+                x = fuzzySetsRisks[key].x
                 aggregation = fuzzySetsRisks[key].y * scaling_coefficients[key]
                 first = False
             else:
                 aggregation = np.fmax(fuzzySetsRisks[key].y * scaling_coefficients[key], aggregation)
 
-        area = np.trapz(aggregation, x=fuzzySetsRisks[k].x)
-        centroid_x = np.trapz(fuzzySetsRisks[k].x * aggregation, x=fuzzySetsRisks[k].x) / area
+        area = np.trapz(aggregation, x=x)
+        centroid_x = np.trapz(x * aggregation, x=x) / area
         file.write(f"{applicant.appId}, {centroid_x}\n")
 
     print("\nSaved to filed")
